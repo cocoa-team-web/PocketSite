@@ -1,0 +1,2076 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<title>PocketWeb</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<style>
+:root{
+  --bg:#0a0c10; --bg2:#12151c; --bg3:#161a22; --bg4:#1e232e;
+  --border:#1e232e; --border2:#2a303c;
+  --text:#e6e8eb; --text2:#d0d5de; --text3:#8a93a6; --text4:#6b7280;
+  --accent:#00d2ff; --accent2:#0066cc;
+  --green:#4ade80; --red:#f87171; --yellow:#fbbf24; --purple:#a855f7;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overflow:hidden}
+body{font-family:Arial,sans-serif;background:var(--bg);color:var(--text);font-size:14px}
+.hidden{display:none!important}
+button{font-family:inherit;cursor:pointer;border:0;outline:none;background:transparent;color:inherit}
+input,textarea,select{font-family:inherit;outline:none;border:0;background:transparent;color:inherit}
+::-webkit-scrollbar{width:8px;height:8px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:4px}
+::-webkit-scrollbar-thumb:hover{background:var(--text4)}
+
+/* ===== TOPBAR ===== */
+#topbar{background:var(--bg3);border-bottom:1px solid var(--border);padding:8px 12px;display:flex;align-items:center;gap:8px;flex-shrink:0;height:52px}
+#topbar .logo{font-size:16px;font-weight:800;color:var(--accent);letter-spacing:.5px;margin-right:8px}
+#topbar button{background:var(--bg4);border:1px solid var(--border2);color:var(--text2);padding:7px 12px;border-radius:8px;font-size:12px;font-weight:600;transition:all .15s}
+#topbar button:hover{background:var(--border);color:var(--text)}
+#topbar button.primary{background:var(--accent);color:#000;border-color:var(--accent)}
+#topbar button.primary:hover{opacity:.9}
+#topbar button.danger{background:transparent;border-color:var(--red);color:var(--red)}
+#topbar button.danger:hover{background:rgba(248,113,113,.15)}
+#topbar .spacer{flex:1}
+#topbar .project-name{font-size:12px;color:var(--text3);margin-right:8px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* ===== LAYOUT ===== */
+#layout{display:flex;height:calc(100vh - 52px);width:100%}
+
+/* ===== ПАЛИТРА ===== */
+#palette{width:240px;background:var(--bg2);border-right:1px solid var(--border);overflow-y:auto;flex-shrink:0;padding-bottom:20px}
+.pal-cat{padding:10px 12px 4px;font-size:11px;color:var(--text4);text-transform:uppercase;letter-spacing:.5px;font-weight:700}
+.pal-item{display:flex;align-items:center;gap:8px;padding:8px 12px;margin:2px 6px;background:var(--bg3);border:1px solid var(--border2);border-radius:8px;cursor:grab;user-select:none;font-size:12.5px;transition:all .12s}
+.pal-item:hover{border-color:var(--accent);background:var(--bg4)}
+.pal-item:active{cursor:grabbing;transform:scale(.97)}
+.pal-item .ico{font-size:16px;line-height:1;flex-shrink:0}
+.pal-item.text{border-left:3px solid #3b82f6}
+.pal-item.button{border-left:3px solid #00d2ff}
+.pal-item.media{border-left:3px solid #a855f7}
+.pal-item.struct{border-left:3px solid #f59e0b}
+.pal-item.effect{border-left:3px solid #ec4899}
+.pal-item.variable{border-left:3px solid #22c55e}
+.pal-item.event{border-left:3px solid #ef4444}
+.pal-item.special{border-left:3px solid #8a93a6}
+
+/* ===== ХОЛСТ ===== */
+#canvasWrap{flex:1;overflow:auto;background:#05070a;padding:20px;display:flex;justify-content:center;position:relative}
+#canvas{width:100%;max-width:720px;min-height:100%;background:#fff;border-radius:12px;padding:20px;box-shadow:0 0 40px rgba(0,210,255,.1);position:relative;display:flex;flex-direction:column;gap:6px}
+#canvas.empty::before{content:'Перетащи блок из палитры слева';position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:#aaa;font-size:13px;font-style:italic;pointer-events:none}
+
+/* ===== БЛОК НА ХОЛСТЕ ===== */
+.block{position:relative;border-radius:8px;border:2px solid transparent;transition:border-color .12s,transform .12s;cursor:pointer;padding:2px}
+.block:hover{border-color:rgba(0,210,255,.35)}
+.block.selected{border-color:var(--accent);box-shadow:0 0 0 3px rgba(0,210,255,.2)}
+.block.dragging{opacity:.5;transform:scale(.98)}
+.block.drop-target{border-top:3px solid var(--accent);border-radius:0}
+.block.event-block{background:#2a1215;border:2px solid #ef4444;border-radius:10px;padding:0}
+.block.event-block .ev-header{padding:8px 12px;background:#ef4444;color:#fff;font-weight:700;font-size:13px;border-radius:8px 8px 0 0;display:flex;align-items:center;gap:6px;cursor:grab}
+.block.event-block .ev-header .close-x{margin-left:auto;font-size:14px;opacity:.7;padding:0 4px}
+.block.event-block .ev-header .close-x:hover{opacity:1}
+.block.event-block .ev-body{min-height:30px;padding:6px 6px 6px 18px;display:flex;flex-direction:column;gap:4px;background:rgba(255,255,255,.9)}
+.block.event-block .ev-body::before{content:'';position:absolute;left:10px;top:36px;bottom:6px;width:2px;background:#ef4444;border-radius:2px;pointer-events:none}
+.block.event-block.empty .ev-body::after{content:'вложи сюда действие';position:absolute;left:32px;top:50%;transform:translateY(-50%);color:#999;font-size:11px;font-style:italic;pointer-events:none}
+.block.action-block{background:#1a1a1a;border:1px solid #333;border-radius:6px;padding:6px 10px;font-size:12px;color:#fff;display:flex;align-items:center;gap:6px;cursor:grab;margin-left:12px;user-select:none;font-family:monospace}
+.block.action-block:hover{border-color:#ef4444}
+.block.action-block .ico{font-size:13px}
+
+/* ===== ИНСПЕКТОР ===== */
+#inspector{width:280px;background:var(--bg2);border-left:1px solid var(--border);overflow-y:auto;flex-shrink:0;padding:12px}
+#inspector h3{font-size:13px;color:var(--accent);margin-bottom:12px;text-transform:uppercase;letter-spacing:.5px;font-weight:700;padding-bottom:8px;border-bottom:1px solid var(--border)}
+#inspector .empty-msg{color:var(--text4);font-size:12px;text-align:center;padding:20px;font-style:italic}
+.prop{margin-bottom:10px}
+.prop label{display:block;font-size:11px;color:var(--text3);margin-bottom:4px;text-transform:uppercase;letter-spacing:.3px}
+.prop input[type=text],.prop input[type=number],.prop textarea,.prop select{width:100%;padding:8px 10px;background:var(--bg);border:1px solid var(--border2);border-radius:6px;color:var(--text);font-size:13px}
+.prop input:focus,.prop textarea:focus,.prop select:focus{border-color:var(--accent)}
+.prop textarea{resize:vertical;min-height:60px;font-family:monospace;font-size:12px}
+.prop input[type=color]{width:100%;height:38px;border:0;border-radius:6px;background:var(--bg);cursor:pointer}
+.prop input[type=range]{width:100%}
+.prop-row{display:flex;gap:8px}
+.prop-row .prop{flex:1}
+.actions-row{display:flex;gap:6px;margin-top:12px}
+.actions-row button{flex:1;padding:9px;border-radius:8px;font-size:12px;font-weight:600;border:1px solid var(--border2);background:var(--bg4);color:var(--text2)}
+.actions-row button:hover{background:var(--border);color:var(--text)}
+.actions-row button.del{background:transparent;border-color:var(--red);color:var(--red)}
+.actions-row button.del:hover{background:rgba(248,113,113,.15)}
+
+/* ===== ПРЕВЬЮ (iframe внизу) ===== */
+#previewBar{background:var(--bg3);border-top:1px solid var(--border);height:0;overflow:hidden;transition:height .2s;display:flex;flex-direction:column}
+#previewBar.open{height:45vh}
+#previewBar .prevHeader{padding:6px 12px;background:var(--bg2);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text3)}
+#previewBar .prevHeader button{background:transparent;border:1px solid var(--border2);color:var(--text3);padding:4px 10px;border-radius:6px;font-size:11px}
+#previewFrame{flex:1;width:100%;border:0;background:#fff}
+
+/* ===== МОДАЛКИ ===== */
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.85);display:none;align-items:center;justify-content:center;padding:16px;z-index:200}
+.modal.show{display:flex}
+.modal-box{background:var(--bg3);border:1px solid var(--border2);border-radius:14px;padding:22px;width:100%;max-width:420px;max-height:90vh;overflow-y:auto}
+.modal-box h3{color:var(--accent);font-size:16px;margin-bottom:14px}
+.modal-box input{width:100%;padding:11px;border-radius:8px;border:1px solid var(--border2);background:var(--bg);color:var(--text);font-size:14px;margin-bottom:8px}
+.modal-box button{width:100%;padding:11px;border-radius:8px;font-weight:600;font-size:13px;margin-top:6px}
+.modal-actions{display:flex;gap:8px;margin-top:6px}
+.modal-actions button{flex:1}
+
+/* ===== TOAST ===== */
+.toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:var(--bg3);color:#fff;padding:12px 22px;border-radius:12px;font-weight:600;z-index:999;display:none;font-size:13px;max-width:90%;border:1px solid var(--border2);text-align:center}
+.toast.show{display:block}
+.toast.success{border-color:var(--green);color:var(--green)}
+.toast.error{border-color:var(--red);color:var(--red)}
+
+/* ===== СПИСОК ПРОЕКТОВ ===== */
+.project-item{display:flex;gap:8px;align-items:center;padding:10px;background:var(--bg);border:1px solid var(--border2);border-radius:8px;margin-bottom:6px}
+.project-item .name{flex:1;font-size:13px;font-weight:600}
+.project-item .date{font-size:10px;color:var(--text4)}
+.project-item button{background:transparent;border:1px solid var(--border2);color:var(--text3);padding:4px 10px;border-radius:6px;font-size:11px}
+.project-item button.del{border-color:var(--red);color:var(--red)}
+
+/* ===== MOBILE ===== */
+@media (max-width:900px){
+  #layout{flex-direction:column;height:calc(100vh - 52px)}
+  #palette{width:100%;max-height:140px;border-right:0;border-bottom:1px solid var(--border);display:flex;flex-wrap:wrap;padding:6px;overflow-x:auto;overflow-y:hidden}
+  .pal-cat{display:none}
+  .pal-item{margin:2px;padding:6px 10px;font-size:11.5px}
+  #inspector{width:100%;max-height:200px;border-left:0;border-top:1px solid var(--border)}
+  #topbar button span.long{display:none}
+}
+</style>
+</head>
+<body>
+
+<!-- ТОПБАР -->
+<div id="topbar">
+  <div class="logo">🧩 PocketWeb</div>
+  <span class="project-name" id="projName">Без названия</span>
+  <button id="btnUndo" title="Отменить">↶</button>
+  <button id="btnRedo" title="Повторить">↷</button>
+  <div class="spacer"></div>
+  <button id="btnPreview" title="Превью внизу">👁 <span class="long">Превью</span></button>
+  <button id="btnOpenTab" title="Открыть в новой вкладке">↗ <span class="long">Вкладка</span></button>
+  <button id="btnSave" title="Сохранить проект">💾 <span class="long">Сохранить</span></button>
+  <button id="btnProjects" title="Мои проекты">📂 <span class="long">Проекты</span></button>
+  <button id="btnNew" class="primary" title="Новый проект">+ <span class="long">Новый</span></button>
+  <button id="btnDownload" class="primary" title="Скачать .html">⬇ <span class="long">Скачать</span></button>
+  <button id="btnClear" class="danger" title="Очистить холст">🗑</button>
+</div>
+
+<!-- ОСНОВНОЙ ЭКРАН -->
+<div id="layout">
+  <div id="palette"></div>
+  <div id="canvasWrap">
+    <div id="canvas" class="empty"></div>
+  </div>
+  <div id="inspector">
+    <h3 id="inspectorTitle">Свойства</h3>
+    <div id="inspectorBody"><div class="empty-msg">Выбери блок на холсте</div></div>
+  </div>
+</div>
+
+<!-- ПРЕВЬЮ ВНИЗУ -->
+<div id="previewBar">
+  <div class="prevHeader">
+    <span>👁 Превью</span>
+    <button id="prevReload">⟳ Обновить</button>
+    <button id="prevClose">✕</button>
+  </div>
+  <iframe id="previewFrame"></iframe>
+</div>
+
+<!-- МОДАЛКА: ПРОЕКТЫ -->
+<div class="modal" id="projectsModal">
+  <div class="modal-box">
+    <h3>📂 Мои проекты</h3>
+    <div id="projectsList"></div>
+    <button id="projModalNew" style="background:var(--accent);color:#000">+ Новый проект</button>
+    <button id="projModalClose" style="background:var(--bg4);color:var(--text2)">Закрыть</button>
+  </div>
+</div>
+
+<!-- МОДАЛКА: ИМЯ ПРОЕКТА -->
+<div class="modal" id="nameModal">
+  <div class="modal-box">
+    <h3>Название проекта</h3>
+    <input id="nameInput" placeholder="Мой сайт" maxlength="50">
+    <div class="modal-actions">
+      <button id="nameOk" style="background:var(--accent);color:#000">Сохранить</button>
+      <button id="nameCancel" style="background:var(--bg4);color:var(--text2)">Отмена</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div><script>
+/* ===== ГЛОБАЛЬНОЕ СОСТОЯНИЕ ===== */
+var project = {
+  name: "Мой сайт",
+  blocks: [],       // список блоков верхнего уровня
+  variables: {},    // { x: 0, name: "текст", flag: true }
+  pageSettings: {   // настройки страницы
+    title: "Мой сайт",
+    bg: "#ffffff",
+    font: "Arial, sans-serif",
+    width: "800"
+  }
+};
+var selectedId = null;
+var blockCounter = 0;
+var historyStack = [];
+var historyIndex = -1;
+var historyLock = false;
+
+/* ===== УТИЛИТЫ ===== */
+function $(id){ return document.getElementById(id); }
+function on(id, ev, fn){ var el = $(id); if (el) el.addEventListener(ev, fn); }
+
+function toast(m, type){
+  var t = $("toast");
+  if (!t) return;
+  t.textContent = m;
+  t.className = "toast show" + (type === "error" ? " error" : type === "success" ? " success" : "");
+  clearTimeout(t._t);
+  t._t = setTimeout(function(){ t.classList.remove("show"); }, 2200);
+}
+
+function esc(s){
+  if (s == null) return "";
+  return String(s)
+    .split("&").join("&amp;")
+    .split(String.fromCharCode(60)).join("&lt;")
+    .split(String.fromCharCode(62)).join("&gt;")
+    .split('"').join("&quot;")
+    .split("'").join("&#39;");
+}
+
+function uid(){ return "b_" + Date.now().toString(36) + "_" + (++blockCounter); }
+
+function clone(o){ return JSON.parse(JSON.stringify(o)); }
+
+/* ===== ИСТОРИЯ (undo / redo) ===== */
+function snapshot(){
+  if (historyLock) return;
+  var snap = { project: clone(project), selectedId: selectedId, blockCounter: blockCounter };
+  historyStack = historyStack.slice(0, historyIndex + 1);
+  historyStack.push(snap);
+  if (historyStack.length > 100) historyStack.shift();
+  historyIndex = historyStack.length - 1;
+}
+
+function applySnapshot(snap){
+  historyLock = true;
+  project = clone(snap.project);
+  selectedId = snap.selectedId || null;
+  blockCounter = snap.blockCounter || blockCounter;
+  historyLock = false;
+}
+
+function undo(){
+  if (historyIndex <= 0) return;
+  historyIndex--;
+  applySnapshot(historyStack[historyIndex]);
+  renderCanvas();
+  renderInspector();
+  renderPalette();
+  toast("↶ Отменено");
+}
+
+function redo(){
+  if (historyIndex >= historyStack.length - 1) return;
+  historyIndex++;
+  applySnapshot(historyStack[historyIndex]);
+  renderCanvas();
+  renderInspector();
+  renderPalette();
+  toast("↷ Повторено");
+}
+
+/* ===== ПОИСК БЛОКА ===== */
+function findBlock(id, list){
+  list = list || project.blocks;
+  for (var i = 0; i < list.length; i++){
+    if (list[i].id === id) return { block: list[i], parent: list, index: i };
+    if (list[i].children && list[i].children.length){
+      var r = findBlock(id, list[i].children);
+      if (r) return r;
+    }
+  }
+  return null;
+}
+
+function findBlockByRef(id){
+  return findBlock(id);
+}
+
+/* ===== ОПРЕДЕЛЕНИЯ БЛОКОВ ===== */
+/* Каждый блок в палитре имеет:
+   - type: уникальный код
+   - name: название для палитры
+   - ico: эмодзи
+   - cat: категория (text/button/media/struct/effect/variable/event/special)
+   - html: шаблон по умолчанию (для обычных блоков)
+   - isEvent: true — скрипт-контейнер
+   - isAction: true — вложенное действие
+   - defaults: значения по умолчанию для свойств
+*/
+var BLOCK_DEFS = {
+
+  /* ТЕКСТ */
+  h1:      { name:"Заголовок H1", ico:"H1", cat:"text",  defaults:{text:"Заголовок", color:"#111111", size:32, align:"left"} },
+  h2:      { name:"Заголовок H2", ico:"H2", cat:"text",  defaults:{text:"Подзаголовок", color:"#222222", size:24, align:"left"} },
+  p:       { name:"Текст",         ico:"📄", cat:"text",  defaults:{text:"Обычный текст", color:"#333333", size:16, align:"left"} },
+  link:    { name:"Ссылка",        ico:"🔗", cat:"text",  defaults:{text:"Перейти", url:"https://", color:"#0066cc", size:16} },
+  quote:   { name:"Цитата",        ico:"❝", cat:"text",  defaults:{text:"Цитата", color:"#555555", size:16} },
+  list:    { name:"Список",        ico:"📋", cat:"text",  defaults:{items:"Первый\nВторой\nТретий", ordered:false, color:"#333333", size:16} },
+
+  /* КНОПКИ */
+  button:  { name:"Кнопка",        ico:"🔘", cat:"button", defaults:{text:"Нажми меня", bg:"#00d2ff", color:"#000000", url:"", id:"btn1", size:14} },
+  btnIcon: { name:"Кнопка-иконка", ico:"⭐", cat:"button", defaults:{icon:"⭐", bg:"#f59e0b", id:"iconbtn", url:""} },
+  btnGroup:{ name:"Группа кнопок", ico:"🔘🔘", cat:"button", defaults:{items:"Да|Нет", bg:"#00d2ff", color:"#000000"} },
+
+  /* МЕДИА */
+  img:     { name:"Картинка",      ico:"🖼", cat:"media", defaults:{url:"https://via.placeholder.com/400x200", width:400, radius:8} },
+  avatar:  { name:"Аватар",        ico:"👤", cat:"media", defaults:{url:"https://via.placeholder.com/100", size:80} },
+  emoji:   { name:"Иконка",        ico:"😀", cat:"media", defaults:{icon:"😀", size:48} },
+  video:   { name:"Видео YouTube", ico:"🎥", cat:"media", defaults:{url:"https://www.youtube.com/embed/dQw4w9WgXcQ", width:560, height:315} },
+
+  /* СТРУКТУРА */
+  bg:      { name:"Фон страницы",  ico:"🎨", cat:"struct", defaults:{color:"#ffffff"} },
+  container:{ name:"Контейнер",    ico:"📦", cat:"struct", defaults:{bg:"#f5f5f5", padding:16, radius:8} },
+  cols2:   { name:"2 колонки",     ico:"⬛⬛", cat:"struct", defaults:{leftText:"Левая", rightText:"Правая", gap:12} },
+  cols3:   { name:"3 колонки",     ico:"⬛⬛⬛", cat:"struct", defaults:{c1:"1", c2:"2", c3:"3", gap:12} },
+  divider: { name:"Разделитель",   ico:"➖", cat:"struct", defaults:{color:"#cccccc", thickness:2} },
+
+  /* ОТСТУПЫ */
+  space:   { name:"Отступ",        ico:"⬜", cat:"effect", defaults:{size:40} },
+  center:  { name:"Центрирование", ico:"↔", cat:"effect", defaults:{} },
+
+  /* ЭФФЕКТЫ */
+  shadow:  { name:"Тень",          ico:"🌑", cat:"effect", defaults:{padding:16, radius:12, bg:"#ffffff"} },
+  gradient:{ name:"Градиент",      ico:"🌈", cat:"effect", defaults:{c1:"#00d2ff", c2:"#a855f7", dir:"135deg", padding:40} },
+  border:  { name:"Рамка",         ico:"🔲", cat:"effect", defaults:{color:"#00d2ff", thickness:2, radius:8, padding:12} },
+
+  /* ПЕРЕМЕННЫЕ */
+  varSet:  { name:"Присвоить",     ico:"🧮", cat:"variable", isAction:true, defaults:{name:"x", value:"0", valueType:"number"} },
+  varChange:{ name:"Изменить",     ico:"➕", cat:"variable", isAction:true, defaults:{name:"x", op:"+=", value:"1"} },
+  varShow: { name:"Показать",      ico:"👁", cat:"variable", isAction:true, defaults:{name:"x"} },
+  varDelete:{ name:"Удалить",      ico:"❌", cat:"variable", isAction:true, defaults:{name:"x"} },
+
+  /* СОБЫТИЯ */
+  onStart: { name:"При старте",    ico:"▶", cat:"event", isEvent:true, defaults:{eventType:"start"} },
+  onClick: { name:"При нажатии",   ico:"👆", cat:"event", isEvent:true, defaults:{eventType:"click", targetId:"btn1"} },
+  onTimer: { name:"При таймере",   ico:"⏱", cat:"event", isEvent:true, defaults:{eventType:"timer", seconds:1} },
+
+  /* ВЛОЖЕННЫЕ ДЕЙСТВИЯ (для скриптов) */
+  actShow: { name:"Показать элемент",  ico:"👁", cat:"action", isAction:true, defaults:{targetId:"", action:"show"} },
+  actHide: { name:"Скрыть элемент",   ico:"🚫", cat:"action", isAction:true, defaults:{targetId:"", action:"hide"} },
+  actColor:{ name:"Изменить цвет",    ico:"🎨", cat:"action", isAction:true, defaults:{targetId:"", color:"#00d2ff"} },
+  actSize: { name:"Изменить размер",  ico:"📏", cat:"action", isAction:true, defaults:{targetId:"", size:"20"}},
+
+  /* СПЕЦИАЛЬНЫЕ */
+  html:    { name:"HTML-код",      ico:"🧩", cat:"special", defaults:{code:"<div>Свой код</div>"} },
+  pageMeta:{ name:"Разметка",      ico:"⚙", cat:"special", defaults:{title:"Мой сайт", lang:"ru"} }
+};
+
+/* Порядок категорий в палитре */
+var CATEGORIES = [
+  { id:"text",     name:"📝 Текст" },
+  { id:"button",   name:"🔘 Кнопки" },
+  { id:"media",    name:"🖼 Медиа" },
+  { id:"struct",   name:"📦 Структура" },
+  { id:"effect",   name:"🎨 Эффекты" },
+  { id:"variable", name:"🧮 Переменные" },
+  { id:"event",    name:"⚡ События" },
+  { id:"action",   name:"🎬 Действия" },
+  { id:"special",  name:"🧩 Специальные" }
+];
+
+/* ===== СОЗДАНИЕ НОВОГО БЛОКА ===== */
+function makeBlock(type){
+  var def = BLOCK_DEFS[type];
+  if (!def) return null;
+  var b = {
+    id: uid(),
+    type: type,
+    isEvent: !!def.isEvent,
+    isAction: !!def.isAction,
+    children: (def.isEvent ? [] : undefined),
+    props: clone(def.defaults || {})
+  };
+  return b;
+}
+
+/* ===== ЗАГРУЗКА / СОХРАНЕНИЕ ПРОЕКТА ===== */
+var LS_PREFIX = "pocketweb_";
+var LS_CURRENT = LS_PREFIX + "current";
+var LS_LIST = LS_PREFIX + "projects";
+
+function saveToLS(){
+  try{
+    localStorage.setItem(LS_CURRENT, JSON.stringify(project));
+  }catch(e){ console.warn("save err:", e); }
+}
+
+function loadFromLS(){
+  try{
+    var raw = localStorage.getItem(LS_CURRENT);
+    if (!raw) return false;
+    var d = JSON.parse(raw);
+    if (!d || !d.blocks) return false;
+    project = d;
+    project.variables = project.variables || {};
+    project.pageSettings = project.pageSettings || { title:"Мой сайт", bg:"#ffffff", font:"Arial, sans-serif", width:"800" };
+    if (!project.pageSettings.width) project.pageSettings.width = "800";
+    // восстановить счётчик
+    var maxN = 0;
+    (function walk(list){
+      for (var i = 0; i < list.length; i++){
+        var n = parseInt((list[i].id || "").replace("b_","").split("_").pop()) || 0;
+        // не идеально, но достаточно
+        if (n > maxN) maxN = n;
+        if (list[i].children && list[i].children.length) walk(list[i].children);
+      }
+    })(project.blocks);
+    blockCounter = maxN + 100;
+    return true;
+  }catch(e){ return false; }
+}
+
+/* ===== СПИСОК ПРОЕКТОВ В localStorage ===== */
+function getProjectsList(){
+  try{
+    var raw = localStorage.getItem(LS_LIST);
+    return raw ? JSON.parse(raw) : [];
+  }catch(e){ return []; }
+}
+
+function saveProjectsList(list){
+  try{ localStorage.setItem(LS_LIST, JSON.stringify(list)); }catch(e){}
+}
+
+/* ===== ИНИЦИАЛИЗАЦИЯ ===== */
+function initApp(){
+  // попробовать загрузить текущий
+  if (!loadFromLS()){
+    // стартовый проект с примером
+    project = {
+      name: "Мой сайт",
+      blocks: [],
+      variables: {},
+      pageSettings: { title:"Мой сайт", bg:"#ffffff", font:"Arial, sans-serif", width:"800" }
+    };
+    // пример: H1 + Текст + Кнопка + Скрипт
+    var h1 = makeBlock("h1");
+    h1.props.text = "Привет, мир!";
+    var p = makeBlock("p");
+    p.props.text = "Это сделано в PocketWeb";
+    var btn = makeBlock("button");
+    btn.props.text = "Кликни меня";
+    btn.props.id = "btn1";
+    var vShow = makeBlock("varShow");
+    vShow.props.name = "x";
+    var ev = makeBlock("onClick");
+    ev.props.targetId = "btn1";
+    var act1 = makeBlock("varChange");
+    act1.props.name = "x";
+    act1.props.op = "+=";
+    act1.props.value = "1";
+    ev.children.push(act1);
+    project.blocks.push(h1, p, btn, vShow, ev);
+    project.variables.x = 0;
+  }
+
+  updateProjectName();
+  renderPalette();
+  renderCanvas();
+  renderInspector();
+  snapshot();
+}
+
+function updateProjectName(){
+  $("projName").textContent = project.name || "Без названия";
+  document.title = (project.name || "PocketWeb") + " — PocketWeb";
+}
+
+/* ===== ЗАПУСК ===== */
+window.addEventListener("DOMContentLoaded", function(){
+  initApp();
+
+  // кнопки topbar
+  on("btnUndo", "click", undo);
+  on("btnRedo", "click", redo);
+  on("btnClear", "click", function(){
+    if (!confirm("Очистить холст? Все блоки удалятся.")) return;
+    project.blocks = [];
+    selectedId = null;
+    snapshot();
+    renderCanvas();
+    renderInspector();
+    toast("🗑 Очищено");
+  });
+  on("btnNew", "click", function(){
+    if (!confirm("Создать новый проект? Текущий сохранится в localStorage.")) return;
+    saveToLS();
+    project = {
+      name: "Новый проект",
+      blocks: [],
+      variables: {},
+      pageSettings: { title:"Новый сайт", bg:"#ffffff", font:"Arial, sans-serif", width:"800" }
+    };
+    selectedId = null;
+    updateProjectName();
+    snapshot();
+    renderCanvas();
+    renderInspector();
+    toast("✅ Новый проект");
+  });
+  on("btnSave", "click", function(){
+    project.name = prompt("Имя проекта:", project.name) || project.name;
+    updateProjectName();
+    saveToLS();
+    // сохранить в список проектов
+    var list = getProjectsList();
+    var existing = null;
+    for (var i = 0; i < list.length; i++) if (list[i].name === project.name) existing = list[i];
+    var entry = {
+      name: project.name,
+      date: new Date().toLocaleString("ru-RU"),
+      data: clone(project)
+    };
+    if (existing){
+      existing.data = entry.data;
+      existing.date = entry.date;
+    } else {
+      list.push(entry);
+    }
+    saveProjectsList(list);
+    toast("💾 Сохранено", "success");
+  });
+});
+
+/* ===== ФУНКЦИИ РЕНДЕРА (заглушки — будут в Part 3-5) ===== */
+function renderPalette(){
+  if (typeof window._renderPalette === "function") window._renderPalette();
+}
+function renderCanvas(){
+  if (typeof window._renderCanvas === "function") window._renderCanvas();
+}
+function renderInspector(){
+  if (typeof window._renderInspector === "function") window._renderInspector();
+}
+</script><script>
+/* ============================================================
+   PART 3: РЕНДЕР ПАЛИТРЫ + ХОЛСТА + DRAG & DROP
+   ============================================================ */
+
+/* ===== РЕНДЕР ПАЛИТРЫ ===== */
+window._renderPalette = function(){
+  var box = $("palette");
+  if (!box) return;
+  var h = "";
+  for (var c = 0; c < CATEGORIES.length; c++){
+    var cat = CATEGORIES[c];
+    h += '<div class="pal-cat">' + cat.name + '</div>';
+    for (var type in BLOCK_DEFS){
+      var def = BLOCK_DEFS[type];
+      if (def.cat !== cat.id) continue;
+      var ico = def.ico || "▫";
+      h += '<div class="pal-item ' + cat.id + '" data-type="' + type + '" draggable="true">' +
+        '<span class="ico">' + esc(ico) + '</span>' +
+        '<span class="nm">' + esc(def.name) + '</span>' +
+      '</div>';
+    }
+  }
+  box.innerHTML = h;
+  attachPaletteDrag();
+};
+
+/* ===== DRAG ИЗ ПАЛИТРЫ ===== */
+function attachPaletteDrag(){
+  var items = document.querySelectorAll("#palette .pal-item");
+  for (var i = 0; i < items.length; i++){
+    (function(el){
+      el.addEventListener("dragstart", function(e){
+        e.dataTransfer.setData("application/x-pocket-type", el.getAttribute("data-type"));
+        e.dataTransfer.effectAllowed = "copy";
+        el.style.opacity = ".5";
+      });
+      el.addEventListener("dragend", function(){
+        el.style.opacity = "";
+      });
+      // поддержка touch (для мобильных)
+      el.addEventListener("touchstart", onPalTouchStart, { passive: false });
+    })(items[i]);
+  }
+}
+
+/* ===== РЕНДЕР ХОЛСТА ===== */
+window._renderCanvas = function(){
+  var canvas = $("canvas");
+  if (!canvas) return;
+  canvas.innerHTML = "";
+  canvas.className = (project.blocks.length ? "" : "empty");
+
+  for (var i = 0; i < project.blocks.length; i++){
+    var node = buildBlockNode(project.blocks[i]);
+    canvas.appendChild(node);
+  }
+  attachCanvasDrag();
+};
+
+/* ===== ПОСТРОЕНИЕ DOM-БЛОКА ===== */
+function buildBlockNode(block){
+  var def = BLOCK_DEFS[block.type] || { name: block.type, ico: "❓" };
+
+  if (block.isEvent){
+    return buildEventNode(block, def);
+  }
+  if (block.isAction){
+    return buildActionNode(block, def);
+  }
+  return buildSimpleNode(block, def);
+}
+
+/* Простые блоки (HTML) — превью в виде карточки */
+function buildSimpleNode(block, def){
+  var el = document.createElement("div");
+  el.className = "block simple-block";
+  if (block.id === selectedId) el.classList.add("selected");
+  el.setAttribute("data-id", block.id);
+  el.setAttribute("draggable", "true");
+
+  var preview = "";
+  var p = block.props || {};
+  var t = block.type;
+  var color = "#1e232e";
+
+  if (t === "h1")       { preview = '<h1 style="margin:0;color:'+esc(p.color||"#111")+';font-size:'+(p.size||32)+'px;text-align:'+esc(p.align||"left")+'">'+esc(p.text||"")+'</h1>'; color = "#1e3a5f"; }
+  else if (t === "h2")  { preview = '<h2 style="margin:0;color:'+esc(p.color||"#222")+';font-size:'+(p.size||24)+'px;text-align:'+esc(p.align||"left")+'">'+esc(p.text||"")+'</h2>'; color = "#1e3a5f"; }
+  else if (t === "p")   { preview = '<p style="margin:0;color:'+esc(p.color||"#333")+';font-size:'+(p.size||16)+'px;text-align:'+esc(p.align||"left")+'">'+esc(p.text||"")+'</p>'; color = "#2a3a4a"; }
+  else if (t === "link"){ preview = '<a href="#" onclick="return false" style="color:'+esc(p.color||"#0066cc")+';font-size:'+(p.size||16)+'px">'+esc(p.text||"")+'</a>'; color = "#2a3a4a"; }
+  else if (t === "quote"){ preview = '<blockquote style="border-left:4px solid #00d2ff;padding-left:10px;color:'+esc(p.color||"#555")+';font-size:'+(p.size||16)+'px;margin:0">'+esc(p.text||"")+'</blockquote>'; color = "#2a3a4a"; }
+  else if (t === "list"){
+    var items = (p.items || "").split("\n").filter(function(s){ return s.length; });
+    var tag = p.ordered ? "ol" : "ul";
+    preview = '<'+tag+' style="margin:0;padding-left:22px;color:'+esc(p.color||"#333")+';font-size:'+(p.size||16)+'px">' + items.map(function(x){ return '<li>'+esc(x)+'</li>'; }).join("") + '</'+tag+'>';
+    color = "#2a3a4a";
+  }
+  else if (t === "button"){
+    preview = '<button style="background:'+esc(p.bg||"#00d2ff")+';color:'+esc(p.color||"#000")+';border:0;padding:10px 20px;border-radius:8px;font-size:'+(p.size||14)+'px;cursor:pointer;font-weight:600">'+esc(p.text||"Кнопка")+'</button>';
+    color = "#1e3a5f";
+  }
+  else if (t === "btnIcon"){
+    preview = '<button style="background:'+esc(p.bg||"#f59e0b")+';border:0;padding:10px 14px;border-radius:8px;font-size:20px;cursor:pointer">'+esc(p.icon||"⭐")+'</button>';
+    color = "#1e3a5f";
+  }
+  else if (t === "btnGroup"){
+    var parts = (p.items || "").split("|").filter(function(s){ return s.length; });
+    preview = parts.map(function(x){
+      return '<button style="background:'+esc(p.bg||"#00d2ff")+';color:'+esc(p.color||"#000")+';border:0;padding:8px 16px;border-radius:8px;font-weight:600;margin-right:6px;cursor:pointer">'+esc(x)+'</button>';
+    }).join("");
+    color = "#1e3a5f";
+  }
+  else if (t === "img") { preview = '<img src="'+esc(p.url||"")+'" style="max-width:100%;border-radius:'+(p.radius||8)+'px" onerror="this.style.background=\'#ddd\';this.alt=\'IMG\'">'; color = "#3a1e5f"; }
+  else if (t === "avatar"){ preview = '<img src="'+esc(p.url||"")+'" style="width:'+(p.size||80)+'px;height:'+(p.size||80)+'px;border-radius:50%;object-fit:cover" onerror="this.style.background=\'#ddd\'">'; color = "#3a1e5f"; }
+  else if (t === "emoji") { preview = '<span style="font-size:'+(p.size||48)+'px">'+esc(p.icon||"😀")+'</span>'; color = "#3a1e5f"; }
+  else if (t === "video") { preview = '<div style="background:#000;color:#fff;padding:40px;text-align:center;border-radius:8px;font-size:12px">▶ YouTube видео (превью в экспорте)</div>'; color = "#3a1e5f"; }
+  else if (t === "bg")    { preview = '<div style="background:'+esc(p.color||"#fff")+';padding:12px;border-radius:6px;border:1px solid #ddd;font-size:12px">🎨 Фон: '+esc(p.color||"#fff")+'</div>'; color = "#5f3a1e"; }
+  else if (t === "container"){ preview = '<div style="background:'+esc(p.bg||"#f5f5f5")+';padding:'+(p.padding||16)+'px;border-radius:'+(p.radius||8)+'px;min-height:40px;font-size:12px;color:#666">📦 Контейнер</div>'; color = "#5f3a1e"; }
+  else if (t === "cols2") { preview = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:'+(p.gap||12)+'px"><div style="background:#e5e7eb;padding:12px;border-radius:6px;font-size:12px">'+esc(p.leftText||"Левая")+'</div><div style="background:#e5e7eb;padding:12px;border-radius:6px;font-size:12px">'+esc(p.rightText||"Правая")+'</div></div>'; color = "#5f3a1e"; }
+  else if (t === "cols3") { preview = '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:'+(p.gap||12)+'px"><div style="background:#e5e7eb;padding:12px;border-radius:6px;font-size:12px;text-align:center">'+esc(p.c1||"1")+'</div><div style="background:#e5e7eb;padding:12px;border-radius:6px;font-size:12px;text-align:center">'+esc(p.c2||"2")+'</div><div style="background:#e5e7eb;padding:12px;border-radius:6px;font-size:12px;text-align:center">'+esc(p.c3||"3")+'</div></div>'; color = "#5f3a1e"; }
+  else if (t === "divider"){ preview = '<hr style="border:0;border-top:'+(p.thickness||2)+'px solid '+esc(p.color||"#ccc")+'">'; color = "#5f3a1e"; }
+  else if (t === "space") { preview = '<div style="height:'+(p.size||40)+'px"></div>'; color = "#5f3a1e"; }
+  else if (t === "center"){ preview = '<div style="text-align:center;color:#666;font-size:12px">↔ Центрирование (для контейнера)</div>'; color = "#5f3a1e"; }
+  else if (t === "shadow"){ preview = '<div style="background:'+esc(p.bg||"#fff")+';padding:'+(p.padding||16)+'px;border-radius:'+(p.radius||12)+'px;box-shadow:0 4px 14px rgba(0,0,0,.25);font-size:12px;color:#666">🌑 Блок с тенью</div>'; color = "#5f1e3a"; }
+  else if (t === "gradient"){ preview = '<div style="background:linear-gradient('+esc(p.dir||"135deg")+','+esc(p.c1||"#00d2ff")+','+esc(p.c2||"#a855f7")+');padding:'+(p.padding||40)+'px;border-radius:8px;color:#fff;text-align:center;font-weight:600">🌈 Градиент</div>'; color = "#5f1e3a"; }
+  else if (t === "border") { preview = '<div style="border:'+(p.thickness||2)+'px solid '+esc(p.color||"#00d2ff")+';padding:'+(p.padding||12)+'px;border-radius:'+(p.radius||8)+'px;font-size:12px;color:#666">🔲 Рамка</div>'; color = "#5f1e3a"; }
+  else if (t === "html")   { preview = '<pre style="background:#1a1a1a;color:#4cff82;padding:8px;border-radius:6px;font-size:11px;overflow-x:auto;margin:0">'+esc(p.code||"")+'</pre>'; color = "#1e1e3a"; }
+  else if (t === "pageMeta"){ preview = '<div style="background:#e5e7eb;padding:8px;border-radius:6px;font-size:12px">⚙ Title: '+esc(p.title||"")+' | lang: '+esc(p.lang||"ru")+'</div>'; color = "#1e1e3a"; }
+  else { preview = '<div style="padding:8px;font-size:12px;color:#666">'+esc(def.name)+'</div>'; }
+
+  el.innerHTML =
+    '<div class="block-label" style="position:absolute;left:4px;top:-8px;background:'+color+';color:#fff;font-size:9px;padding:1px 6px;border-radius:4px;font-weight:700;pointer-events:none;z-index:2">'+esc(def.name)+'</div>' +
+    '<div class="block-preview" style="background:#fff;padding:10px;border-radius:6px;pointer-events:none">'+ preview +'</div>';
+
+  // удалить кнопку
+  var del = document.createElement("button");
+  del.className = "block-del";
+  del.textContent = "✕";
+  del.style.cssText = "position:absolute;right:-8px;top:-8px;width:20px;height:20px;border-radius:50%;background:#ef4444;color:#fff;font-size:11px;display:none;align-items:center;justify-content:center;z-index:3;border:0;cursor:pointer";
+  el.appendChild(del);
+  el.addEventListener("mouseenter", function(){ del.style.display = "flex"; });
+  el.addEventListener("mouseleave", function(){ del.style.display = "none"; });
+  del.addEventListener("click", function(ev){
+    ev.stopPropagation();
+    deleteBlock(block.id);
+  });
+
+  return el;
+}
+
+/* Скрипт-контейнер (событие с вложенными действиями) */
+function buildEventNode(block, def){
+  var el = document.createElement("div");
+  el.className = "block event-block";
+  if (block.id === selectedId) el.classList.add("selected");
+  if (!block.children || !block.children.length) el.classList.add("empty");
+  el.setAttribute("data-id", block.id);
+
+  var headerLabel = def.name;
+  var p = block.props || {};
+  if (block.type === "onClick" && p.targetId) headerLabel += " → " + esc(p.targetId);
+  if (block.type === "onTimer" && p.seconds) headerLabel += " (" + p.seconds + " сек)";
+
+  el.innerHTML =
+    '<div class="ev-header" draggable="true">' +
+      '<span>' + esc(def.ico || "⚡") + '</span>' +
+      '<span>' + headerLabel + '</span>' +
+      '<span class="close-x" data-del="1">✕</span>' +
+    '</div>' +
+    '<div class="ev-body"></div>';
+
+  var body = el.querySelector(".ev-body");
+  if (block.children && block.children.length){
+    for (var i = 0; i < block.children.length; i++){
+      body.appendChild(buildActionNode(block.children[i], def, block));
+    }
+  }
+
+  el.querySelector(".close-x").addEventListener("click", function(ev){
+    ev.stopPropagation();
+    deleteBlock(block.id);
+  });
+
+  return el;
+}
+
+/* Вложенное действие */
+function buildActionNode(block, parentDef, parentBlock){
+  var def = BLOCK_DEFS[block.type] || { name: block.type, ico: "⚙" };
+  var el = document.createElement("div");
+  el.className = "block action-block";
+  if (block.id === selectedId) el.classList.add("selected");
+  el.setAttribute("data-id", block.id);
+  el.setAttribute("draggable", "true");
+
+  var p = block.props || {};
+  var text = def.name;
+  if (block.type === "varSet")     text = "🧮 " + esc(p.name||"x") + " = " + esc(p.value||"0");
+  else if (block.type === "varChange") text = "➕ " + esc(p.name||"x") + " " + esc(p.op||"+=") + " " + esc(p.value||"1");
+  else if (block.type === "varShow")   text = "👁 Показать " + esc(p.name||"x");
+  else if (block.type === "varDelete") text = "❌ Удалить " + esc(p.name||"x");
+  else if (block.type === "actShow")   text = "👁 Показать " + esc(p.targetId||"—");
+  else if (block.type === "actHide")   text = "🚫 Скрыть " + esc(p.targetId||"—");
+  else if (block.type === "actColor")  text = "🎨 Цвет " + esc(p.targetId||"—") + " → " + esc(p.color||"#fff");
+  else if (block.type === "actSize")   text = "📏 Размер " + esc(p.targetId||"—") + " → " + esc(p.size||"20");
+  else text = def.ico + " " + def.name;
+
+  el.innerHTML = '<span>' + text + '</span>' +
+    '<span class="act-del" data-del="1" style="margin-left:auto;padding:0 4px;color:#ef4444;cursor:pointer">✕</span>';
+
+  el.querySelector(".act-del").addEventListener("click", function(ev){
+    ev.stopPropagation();
+    deleteBlock(block.id);
+  });
+
+  return el;
+}
+
+/* ===== DRAG & DROP НА ХОЛСТЕ ===== */
+function attachCanvasDrag(){
+  var canvas = $("canvas");
+
+  // drop из палитры (HTML5 drag)
+  canvas.addEventListener("dragover", function(e){
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "copy";
+  });
+  canvas.addEventListener("drop", function(e){
+    e.preventDefault();
+    var type = e.dataTransfer.getData("application/x-pocket-type");
+    if (!type) return;
+    var b = makeBlock(type);
+    if (!b) return;
+    project.blocks.push(b);
+    snapshot();
+    renderCanvas();
+    selectBlock(b.id);
+    toast("➕ Добавлен: " + (BLOCK_DEFS[type].name || type));
+  });
+
+  // клики по блокам на холсте
+  var blocks = canvas.querySelectorAll(".block");
+  for (var i = 0; i < blocks.length; i++){
+    (function(el){
+      el.addEventListener("click", function(ev){
+        if (ev.target.hasAttribute("data-del")) return;
+        var id = el.getAttribute("data-id");
+        selectBlock(id);
+      });
+    })(blocks[i]);
+  }
+}
+
+/* ===== УДАЛЕНИЕ БЛОКА ===== */
+function deleteBlock(id){
+  var found = findBlock(id);
+  if (!found) return;
+  found.parent.splice(found.index, 1);
+  if (selectedId === id) selectedId = null;
+  snapshot();
+  renderCanvas();
+  renderInspector();
+  toast("🗑 Удалено");
+}
+
+/* ===== ВЫБОР БЛОКА ===== */
+function selectBlock(id){
+  selectedId = id;
+  // снять выделение
+  var all = document.querySelectorAll(".block.selected");
+  for (var i = 0; i < all.length; i++) all[i].classList.remove("selected");
+  // подсветить
+  var el = document.querySelector('.block[data-id="' + id + '"]');
+  if (el) el.classList.add("selected");
+  renderInspector();
+}
+
+/* ===== DRAG НА МОБИЛЬНЫХ (touch) ===== */
+var touchDragData = null;
+var touchGhost = null;
+
+function onPalTouchStart(e){
+  var el = e.currentTarget;
+  var type = el.getAttribute("data-type");
+  if (!type) return;
+  e.preventDefault();
+
+  touchDragData = type;
+
+  // создать «призрак» — копию элемента, следующий за пальцем
+  var rect = el.getBoundingClientRect();
+  touchGhost = el.cloneNode(true);
+  touchGhost.style.cssText = "position:fixed;left:"+rect.left+"px;top:"+rect.top+"px;width:"+rect.width+"px;pointer-events:none;z-index:9999;opacity:.85";
+  document.body.appendChild(touchGhost);
+
+  document.addEventListener("touchmove", onPalTouchMove, { passive: false });
+  document.addEventListener("touchend", onPalTouchEnd);
+}
+
+function onPalTouchMove(e){
+  if (!touchGhost) return;
+  e.preventDefault();
+  var t = e.touches[0];
+  touchGhost.style.left = (t.clientX - 40) + "px";
+  touchGhost.style.top  = (t.clientY - 20) + "px";
+}
+
+function onPalTouchEnd(e){
+  if (!touchDragData) return;
+  var t = e.changedTouches[0];
+  var target = document.elementFromPoint(t.clientX, t.clientY);
+  if (touchGhost) { touchGhost.remove(); touchGhost = null; }
+  document.removeEventListener("touchmove", onPalTouchMove);
+  document.removeEventListener("touchend", onPalTouchEnd);
+
+  var canvas = $("canvas");
+  if (canvas && (canvas === target || canvas.contains(target))){
+    var b = makeBlock(touchDragData);
+    if (b){
+      project.blocks.push(b);
+      snapshot();
+      renderCanvas();
+      selectBlock(b.id);
+      toast("➕ Добавлен");
+    }
+  }
+  touchDragData = null;
+}
+</script><script>
+/* ============================================================
+   PART 4: ИНСПЕКТОР СВОЙСТВ
+   Рендер полей для выбранного блока + изменение
+   ============================================================ */
+
+/* ===== РЕНДЕР ИНСПЕКТОРА ===== */
+window._renderInspector = function(){
+  var title = $("inspectorTitle");
+  var body = $("inspectorBody");
+  if (!title || !body) return;
+
+  if (!selectedId){
+    title.textContent = "Свойства";
+    body.innerHTML = '<div class="empty-msg">Выбери блок на холсте</div>';
+    return;
+  }
+  var found = findBlock(selectedId);
+  if (!found){
+    selectedId = null;
+    title.textContent = "Свойства";
+    body.innerHTML = '<div class="empty-msg">Блок не найден</div>';
+    return;
+  }
+  var block = found.block;
+  var def = BLOCK_DEFS[block.type] || { name: block.type };
+
+  title.textContent = "⚙ " + (def.name || block.type);
+  body.innerHTML = buildInspectorHTML(block, def);
+
+  // навесить обработчики
+  attachInspectorEvents(block);
+  attachInspectorActions(block, found);
+};
+
+/* ===== HTML ИНСПЕКТОРА ПО ТИПУ БЛОКА ===== */
+function buildInspectorHTML(block, def){
+  var p = block.props || {};
+  var h = "";
+  var t = block.type;
+
+  /* ОБЩИЕ ПОЛЯ: ID блока */
+  h += '<div class="prop"><label>ID блока</label><input type="text" readonly value="' + esc(block.id) + '" style="color:#6b7280;font-family:monospace;font-size:11px"></div>';
+
+  /* ===== ТЕКСТОВЫЕ ===== */
+  if (t === "h1" || t === "h2" || t === "p" || t === "quote"){
+    h += fieldText("Содержимое", "text", p.text);
+    h += fieldText("Цвет", "color", p.color, "color");
+    h += fieldNumber("Размер шрифта", "size", p.size);
+    h += fieldSelect("Выравнивание", "align", p.align, [
+      {v:"left", n:"Слева"}, {v:"center", n:"По центру"}, {v:"right", n:"Справа"}
+    ]);
+  }
+  else if (t === "link"){
+    h += fieldText("Текст", "text", p.text);
+    h += fieldText("Ссылка (URL)", "url", p.url);
+    h += fieldText("Цвет", "color", p.color, "color");
+    h += fieldNumber("Размер шрифта", "size", p.size);
+  }
+  else if (t === "list"){
+    h += fieldTextarea("Пункты (каждый с новой строки)", "items", p.items);
+    h += fieldSelect("Тип списка", "ordered", p.ordered ? "1" : "0", [
+      {v:"0", n:"Маркированный"}, {v:"1", n:"Нумерованный"}
+    ]);
+    h += fieldText("Цвет", "color", p.color, "color");
+    h += fieldNumber("Размер шрифта", "size", p.size);
+  }
+
+  /* ===== КНОПКИ ===== */
+  else if (t === "button"){
+    h += fieldText("Текст кнопки", "text", p.text);
+    h += fieldText("Цвет фона", "bg", p.bg, "color");
+    h += fieldText("Цвет текста", "color", p.color, "color");
+    h += fieldText("Ссылка (URL)", "url", p.url);
+    h += fieldText("ID для скриптов", "id", p.id);
+    h += fieldNumber("Размер шрифта", "size", p.size);
+  }
+  else if (t === "btnIcon"){
+    h += fieldText("Эмодзи", "icon", p.icon);
+    h += fieldText("Цвет фона", "bg", p.bg, "color");
+    h += fieldText("ID", "id", p.id);
+    h += fieldText("Ссылка", "url", p.url);
+  }
+  else if (t === "btnGroup"){
+    h += fieldText("Кнопки (через |)", "items", p.items);
+    h += fieldText("Цвет фона", "bg", p.bg, "color");
+    h += fieldText("Цвет текста", "color", p.color, "color");
+  }
+
+  /* ===== МЕДИА ===== */
+  else if (t === "img"){
+    h += fieldText("URL картинки", "url", p.url);
+    h += fieldNumber("Ширина (px)", "width", p.width);
+    h += fieldNumber("Скругление (px)", "radius", p.radius);
+  }
+  else if (t === "avatar"){
+    h += fieldText("URL картинки", "url", p.url);
+    h += fieldNumber("Размер (px)", "size", p.size);
+  }
+  else if (t === "emoji"){
+    h += fieldText("Эмодзи", "icon", p.icon);
+    h += fieldNumber("Размер (px)", "size", p.size);
+  }
+  else if (t === "video"){
+    h += fieldText("Ссылка YouTube (embed)", "url", p.url);
+    h += fieldNumber("Ширина", "width", p.width);
+    h += fieldNumber("Высота", "height", p.height);
+  }
+
+  /* ===== СТРУКТУРА ===== */
+  else if (t === "bg"){
+    h += fieldText("Цвет фона страницы", "color", p.color, "color");
+  }
+  else if (t === "container"){
+    h += fieldText("Цвет фона", "bg", p.bg, "color");
+    h += fieldNumber("Отступ внутри (px)", "padding", p.padding);
+    h += fieldNumber("Скругление (px)", "radius", p.radius);
+  }
+  else if (t === "cols2"){
+    h += fieldText("Левая колонка", "leftText", p.leftText);
+    h += fieldText("Правая колонка", "rightText", p.rightText);
+    h += fieldNumber("Отступ между (px)", "gap", p.gap);
+  }
+  else if (t === "cols3"){
+    h += fieldText("Колонка 1", "c1", p.c1);
+    h += fieldText("Колонка 2", "c2", p.c2);
+    h += fieldText("Колонка 3", "c3", p.c3);
+    h += fieldNumber("Отступ между (px)", "gap", p.gap);
+  }
+  else if (t === "divider"){
+    h += fieldText("Цвет", "color", p.color, "color");
+    h += fieldNumber("Толщина (px)", "thickness", p.thickness);
+  }
+
+  /* ===== ЭФФЕКТЫ ===== */
+  else if (t === "space"){
+    h += fieldNumber("Высота (px)", "size", p.size);
+  }
+  else if (t === "center"){
+    h += '<div class="empty-msg">Блок не имеет настроек<br>Обворачивает содержимое по центру</div>';
+  }
+  else if (t === "shadow"){
+    h += fieldText("Цвет фона", "bg", p.bg, "color");
+    h += fieldNumber("Внутренний отступ", "padding", p.padding);
+    h += fieldNumber("Скругление", "radius", p.radius);
+  }
+  else if (t === "gradient"){
+    h += fieldText("Цвет 1", "c1", p.c1, "color");
+    h += fieldText("Цвет 2", "c2", p.c2, "color");
+    h += fieldSelect("Направление", "dir", p.dir, [
+      {v:"135deg", n:"↘ Диагональ"},
+      {v:"90deg", n:"→ Вправо"},
+      {v:"180deg", n:"↓ Вниз"},
+      {v:"45deg", n:"↗ Диагональ 2"}
+    ]);
+    h += fieldNumber("Отступ внутри (px)", "padding", p.padding);
+  }
+  else if (t === "border"){
+    h += fieldText("Цвет рамки", "color", p.color, "color");
+    h += fieldNumber("Толщина (px)", "thickness", p.thickness);
+    h += fieldNumber("Скругление (px)", "radius", p.radius);
+    h += fieldNumber("Отступ внутри (px)", "padding", p.padding);
+  }
+
+  /* ===== ПЕРЕМЕННЫЕ (действия) ===== */
+  else if (t === "varSet"){
+    h += fieldText("Имя переменной", "name", p.name);
+    h += fieldSelect("Тип значения", "valueType", p.valueType || "number", [
+      {v:"number", n:"Число"}, {v:"string", n:"Текст"}, {v:"bool", n:"true/false"}
+    ]);
+    h += fieldText("Значение", "value", p.value);
+  }
+  else if (t === "varChange"){
+    h += fieldText("Имя переменной", "name", p.name);
+    h += fieldSelect("Операция", "op", p.op, [
+      {v:"+=", n:"+="}, {v:"-=", n:"-="}, {v:"*=", n:"*="}, {v:"/=", n:"/="}
+    ]);
+    h += fieldText("Значение", "value", p.value);
+  }
+  else if (t === "varShow"){
+    h += fieldText("Имя переменной", "name", p.name);
+  }
+  else if (t === "varDelete"){
+    h += fieldText("Имя переменной", "name", p.name);
+  }
+
+  /* ===== СОБЫТИЯ ===== */
+  else if (t === "onStart"){
+    h += '<div class="empty-msg">Выполняется при загрузке страницы</div>';
+    h += '<div class="prop"><label>Действия (' + (block.children ? block.children.length : 0) + ')</label>' +
+         '<div style="font-size:11px;color:#6b7280">Перетащи сюда действия снизу страницы</div></div>';
+  }
+  else if (t === "onClick"){
+    h += fieldText("ID элемента (кнопки)", "targetId", p.targetId);
+    h += '<div class="prop"><label>Действия (' + (block.children ? block.children.length : 0) + ')</label>' +
+         '<div style="font-size:11px;color:#6b7280">Перетащи действия вниз в блок скрипта</div></div>';
+  }
+  else if (t === "onTimer"){
+    h += fieldNumber("Каждые N секунд", "seconds", p.seconds);
+    h += '<div class="prop"><label>Действия (' + (block.children ? block.children.length : 0) + ')</label></div>';
+  }
+
+  /* ===== ДЕЙСТВИЯ ===== */
+  else if (t === "actShow" || t === "actHide"){
+    h += fieldText("ID элемента", "targetId", p.targetId);
+  }
+  else if (t === "actColor"){
+    h += fieldText("ID элемента", "targetId", p.targetId);
+    h += fieldText("Новый цвет", "color", p.color, "color");
+  }
+  else if (t === "actSize"){
+    h += fieldText("ID элемента", "targetId", p.targetId);
+    h += fieldNumber("Размер (px)", "size", p.size);
+  }
+
+  /* ===== СПЕЦИАЛЬНЫЕ ===== */
+  else if (t === "html"){
+    h += fieldTextarea("HTML-код", "code", p.code);
+  }
+  else if (t === "pageMeta"){
+    h += fieldText("Title (название вкладки)", "title", p.title);
+    h += fieldText("Язык (ru/en)", "lang", p.lang);
+  }
+
+  /* ===== ДЕЙСТВИЯ С БЛОКОМ ===== */
+  h += '<div class="actions-row">';
+  h += '<button id="actDup">📋 Дубль</button>';
+  h += '<button id="actUp">↑ Вверх</button>';
+  h += '<button id="actDown">↓ Вниз</button>';
+  h += '</div>';
+  h += '<div class="actions-row">';
+  h += '<button id="actDel" class="del">🗑 Удалить</button>';
+  h += '</div>';
+
+  return h;
+}
+
+/* ===== ХЕЛПЕРЫ ПОЛЕЙ ===== */
+function fieldText(label, key, value, type){
+  type = type || "text";
+  return '<div class="prop"><label>' + esc(label) + '</label>' +
+    '<input type="' + type + '" data-key="' + esc(key) + '" value="' + esc(value == null ? "" : value) + '"></div>';
+}
+function fieldNumber(label, key, value){
+  return '<div class="prop"><label>' + esc(label) + '</label>' +
+    '<input type="number" data-key="' + esc(key) + '" value="' + esc(value == null ? "" : value) + '"></div>';
+}
+function fieldTextarea(label, key, value){
+  return '<div class="prop"><label>' + esc(label) + '</label>' +
+    '<textarea data-key="' + esc(key) + '">' + esc(value == null ? "" : value) + '</textarea></div>';
+}
+function fieldSelect(label, key, value, options){
+  var h = '<div class="prop"><label>' + esc(label) + '</label>' +
+    '<select data-key="' + esc(key) + '">';
+  for (var i = 0; i < options.length; i++){
+    var o = options[i];
+    var sel = (String(value) === String(o.v)) ? " selected" : "";
+    h += '<option value="' + esc(o.v) + '"' + sel + '>' + esc(o.n) + '</option>';
+  }
+  h += '</select></div>';
+  return h;
+}
+
+/* ===== НАВЕШИВАНИЕ СОБЫТИЙ ИЗМЕНЕНИЯ ПОЛЕЙ ===== */
+function attachInspectorEvents(block){
+  var body = $("inspectorBody");
+  if (!body) return;
+  var inputs = body.querySelectorAll("[data-key]");
+  for (var i = 0; i < inputs.length; i++){
+    (function(inp){
+      var key = inp.getAttribute("data-key");
+      var ev = (inp.tagName === "SELECT" || inp.type === "color") ? "change" : "input";
+
+      inp.addEventListener(ev, function(){
+        var v = inp.value;
+        // булево поле "ordered"
+        if (key === "ordered") v = (v === "1" || v === "true");
+        else if (key === "size" || key === "width" || key === "height" || key === "padding" || key === "radius" || key === "thickness" || key === "gap" || key === "seconds"){
+          v = parseInt(v) || 0;
+        } else if (key === "value" && block.type === "varSet" && block.props.valueType === "number"){
+          var n = parseFloat(v);
+          if (!isNaN(n)) v = n;
+        }
+        block.props[key] = v;
+
+        // если переменная — сразу обновить project.variables
+        if (block.type === "varSet" && key === "name"){
+          // не трогаем — имя может совпадать с существующей
+        }
+        if (block.type === "varSet" && block.props.name){
+          if (project.variables[block.props.name] === undefined){
+            project.variables[block.props.name] = block.props.value;
+          }
+        }
+
+        // лёгкий рендер без снапшота
+        snapshot();  // фиксируем в истории
+        renderCanvas();  // превью блока мог измениться
+        // не перерисовываем инспектор (чтобы не терять фокус)
+      });
+    })(inputs[i]);
+  }
+}
+
+/* ===== НАВЕШИВАНИЕ ДЕЙСТВИЙ НАД БЛОКОМ ===== */
+function attachInspectorActions(block, found){
+  var dup = $("actDup");
+  if (dup) dup.addEventListener("click", function(){
+    var copy = clone(block);
+    copy.id = uid();
+    if (copy.children){
+      for (var i = 0; i < copy.children.length; i++) copy.children[i].id = uid();
+    }
+    found.parent.splice(found.index + 1, 0, copy);
+    snapshot();
+    renderCanvas();
+    selectBlock(copy.id);
+    toast("📋 Дублировано");
+  });
+
+  var up = $("actUp");
+  if (up) up.addEventListener("click", function(){
+    if (found.index <= 0) return;
+    var arr = found.parent;
+    var tmp = arr[found.index - 1];
+    arr[found.index - 1] = arr[found.index];
+    arr[found.index] = tmp;
+    snapshot();
+    renderCanvas();
+    selectBlock(block.id);
+  });
+
+  var down = $("actDown");
+  if (down) down.addEventListener("click", function(){
+    var arr = found.parent;
+    if (found.index >= arr.length - 1) return;
+    var tmp = arr[found.index + 1];
+    arr[found.index + 1] = arr[found.index];
+    arr[found.index] = tmp;
+    snapshot();
+    renderCanvas();
+    selectBlock(block.id);
+  });
+
+  var del = $("actDel");
+  if (del) del.addEventListener("click", function(){
+    if (!confirm("Удалить блок?")) return;
+    deleteBlock(block.id);
+  });
+}
+
+/* ===== DRAG ДЕЙСТВИЙ ВНУТРЬ СКРИПТА (1B — snap) ===== */
+/* Таскание действий из палитры → drop в .ev-body скрипта */
+document.addEventListener("dragover", function(e){
+  var evBody = e.target.closest && e.target.closest(".ev-body");
+  if (evBody){
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "copy";
+    evBody.style.background = "rgba(0,210,255,.1)";
+  }
+});
+
+document.addEventListener("dragleave", function(e){
+  var evBody = e.target.closest && e.target.closest(".ev-body");
+  if (evBody) evBody.style.background = "";
+});
+
+document.addEventListener("drop", function(e){
+  var evBody = e.target.closest && e.target.closest(".ev-body");
+  if (!evBody) return;
+  e.preventDefault();
+  e.stopPropagation();
+  evBody.style.background = "";
+
+  var type = e.dataTransfer.getData("application/x-pocket-type");
+  if (!type) return;
+  var def = BLOCK_DEFS[type];
+  if (!def || !def.isAction) return;  // в скрипт можно только действия
+
+  var evBlockEl = evBody.closest(".event-block");
+  if (!evBlockEl) return;
+  var evId = evBlockEl.getAttribute("data-id");
+  var found = findBlock(evId);
+  if (!found) return;
+
+  var act = makeBlock(type);
+  if (!act) return;
+  found.block.children = found.block.children || [];
+  found.block.children.push(act);
+
+  snapshot();
+  renderCanvas();
+  selectBlock(act.id);
+  toast("➕ Действие добавлено");
+});
+</script><script>
+/* ============================================================
+   PART 5: ПЕРЕМЕННЫЕ
+   Окно переменных, добавление, удаление, автоопределение
+   ============================================================ */
+
+/* ===== ОТКРЫТИЕ ОКНА ПЕРЕМЕННЫХ ===== */
+/* Кнопка "Переменные" появится в топбаре в Part 7,
+   сейчас функция вызывается программно или из консоли. */
+
+function openVarsModal(){
+  var modal = $("varsModal");
+  if (!modal){
+    // создать модалку динамически, если ещё нет
+    var m = document.createElement("div");
+    m.className = "modal";
+    m.id = "varsModal";
+    m.innerHTML =
+      '<div class="modal-box">' +
+        '<h3>🧮 Переменные проекта</h3>' +
+        '<div id="varsList" style="margin-bottom:12px"></div>' +
+        '<div style="display:flex;gap:6px;margin-bottom:10px">' +
+          '<input id="newVarName" placeholder="имя" style="flex:1;padding:10px;border-radius:8px;border:1px solid #2a303c;background:#0a0c10;color:#fff;font-size:13px;font-family:monospace">' +
+          '<select id="newVarType" style="padding:10px;border-radius:8px;border:1px solid #2a303c;background:#0a0c10;color:#fff;font-size:13px">' +
+            '<option value="number">Число</option>' +
+            '<option value="string">Текст</option>' +
+            '<option value="bool">true/false</option>' +
+          '</select>' +
+          '<input id="newVarValue" placeholder="значение" style="flex:1;padding:10px;border-radius:8px;border:1px solid #2a303c;background:#0a0c10;color:#fff;font-size:13px;font-family:monospace">' +
+          '<button id="addVarBtn" style="padding:10px 14px;border-radius:8px;background:#00d2ff;color:#000;font-weight:700;border:0">+</button>' +
+        '</div>' +
+        '<button id="varsModalClose" style="width:100%;padding:11px;border-radius:8px;background:#1e232e;color:#d0d5de;font-weight:600;border:1px solid #2a303c">Закрыть</button>' +
+      '</div>';
+    document.body.appendChild(m);
+    on("varsModalClose", "click", function(){ m.classList.remove("show"); });
+    on("addVarBtn", "click", addVarFromModal);
+  }
+  renderVarsList();
+  modal.classList.add("show");
+}
+
+/* ===== СПИСОК ПЕРЕМЕННЫХ ===== */
+function renderVarsList(){
+  var list = $("varsList");
+  if (!list) return;
+  var keys = Object.keys(project.variables || {});
+  if (!keys.length){
+    list.innerHTML = '<div style="color:#6b7280;font-size:12px;padding:10px;text-align:center;font-style:italic">Переменных пока нет</div>';
+    return;
+  }
+  var h = "";
+  for (var i = 0; i < keys.length; i++){
+    var k = keys[i];
+    var v = project.variables[k];
+    var typeName = typeof v === "number" ? "число" : typeof v === "string" ? "текст" : typeof v === "boolean" ? "bool" : "?";
+    h += '<div class="project-item">' +
+      '<span style="font-family:monospace;font-weight:700;color:#22c55e">' + esc(k) + '</span>' +
+      '<span style="flex:1;font-family:monospace;color:#d0d5de">' + esc(JSON.stringify(v)) + '</span>' +
+      '<span style="font-size:10px;color:#6b7280">' + typeName + '</span>' +
+      '<button data-vedit="' + esc(k) + '">✎</button>' +
+      '<button data-vdel="' + esc(k) + '" class="del">✕</button>' +
+    '</div>';
+  }
+  list.innerHTML = h;
+
+  var edits = list.querySelectorAll("[data-vedit]");
+  for (var j = 0; j < edits.length; j++){
+    (function(b){
+      b.addEventListener("click", function(){
+        var name = b.getAttribute("data-vedit");
+        var cur = project.variables[name];
+        var nv = prompt("Значение для " + name + ":", JSON.stringify(cur));
+        if (nv === null) return;
+        var parsed = parseValue(nv);
+        project.variables[name] = parsed;
+        snapshot();
+        renderVarsList();
+        renderInspector();
+      });
+    })(edits[j]);
+  }
+  var dels = list.querySelectorAll("[data-vdel]");
+  for (var l = 0; l < dels.length; l++){
+    (function(b){
+      b.addEventListener("click", function(){
+        var name = b.getAttribute("data-vdel");
+        if (!confirm("Удалить переменную " + name + "?")) return;
+        delete project.variables[name];
+        snapshot();
+        renderVarsList();
+      });
+    })(dels[l]);
+  }
+}
+
+/* ===== ДОБАВЛЕНИЕ ПЕРЕМЕННОЙ ===== */
+function addVarFromModal(){
+  var name = ($("newVarName").value || "").trim();
+  var type = $("newVarType").value;
+  var value = $("newVarValue").value;
+
+  if (!name){
+    toast("Введи имя переменной", "error");
+    return;
+  }
+  if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(name)){
+    toast("Имя: латиница, цифры, _ (не с цифры)", "error");
+    return;
+  }
+  if (project.variables[name] !== undefined){
+    toast("Переменная уже есть", "error");
+    return;
+  }
+
+  project.variables[name] = parseValue(value, type);
+  $("newVarName").value = "";
+  $("newVarValue").value = "";
+  snapshot();
+  renderVarsList();
+  toast("✅ Добавлена: " + name, "success");
+}
+
+/* ===== ПАРСИНГ ЗНАЧЕНИЯ ===== */
+function parseValue(str, hintType){
+  str = String(str == null ? "" : str).trim();
+  if (hintType === "bool" || str === "true" || str === "false"){
+    return str === "true";
+  }
+  if (hintType === "string"){
+    return str.replace(/^["']|["']$/g, "");
+  }
+  // auto-detect
+  if (/^-?\d+(\.\d+)?$/.test(str)) return parseFloat(str);
+  if (str === "true") return true;
+  if (str === "false") return false;
+  return str.replace(/^["']|["']$/g, "");
+}
+
+/* ===== АВТООБНАРУЖЕНИЕ ПЕРЕМЕННЫХ ИЗ БЛОКОВ ===== */
+/* Если пользователь создал блок varSet с новым именем,
+   переменная автоматически появляется в project.variables */
+
+function autoDetectVars(){
+  var found = {};
+  (function walk(list){
+    for (var i = 0; i < list.length; i++){
+      var b = list[i];
+      if (b.type === "varSet" && b.props && b.props.name){
+        found[b.props.name] = b.props.value;
+      }
+      if (b.children && b.children.length) walk(b.children);
+    }
+  })(project.blocks);
+
+  for (var name in found){
+    if (project.variables[name] === undefined){
+      project.variables[name] = found[name];
+    }
+  }
+}<script>
+/* ============================================================
+   PART 6: ГЕНЕРАЦИЯ HTML/CSS/JS И ПРЕВЬЮ
+   ============================================================ */
+
+/* ===== ГЕНЕРАЦИЯ HTML СТРАНИЦЫ ===== */
+function generateHTML(){
+  autoDetectVars();  // подтянуть переменные из блоков
+
+  var ps = project.pageSettings || {};
+  var title = ps.title || project.name || "Мой сайт";
+  var bg = ps.bg || "#ffffff";
+  var font = ps.font || "Arial, sans-serif";
+  var maxWidth = ps.width || "800";
+
+  var bodyHtml = "";
+  var cssParts = [];
+  var jsParts = [];
+
+  // собираем блоки
+  for (var i = 0; i < project.blocks.length; i++){
+    var b = project.blocks[i];
+    var r = renderBlockToHTML(b, cssParts, jsParts);
+    bodyHtml += r + "\n";
+  }
+
+  // переменные: объявление
+  var varsJs = "";
+  var varKeys = Object.keys(project.variables || {});
+  if (varKeys.length){
+    varsJs += "// Переменные\n";
+    for (var v = 0; v < varKeys.length; v++){
+      var k = varKeys[v];
+      var val = project.variables[k];
+      var json = JSON.stringify(val);
+      // безопасно: если число/булево — как есть; строка — в кавычках
+      varsJs += "let " + k + " = " + json + ";\n";
+    }
+    varsJs += "\n";
+    // авто-индикатор переменных
+    varsJs += "// Авто-индикатор переменных\n";
+    varsJs += "(function(){\n";
+    varsJs += "  const box = document.createElement('div');\n";
+    varsJs += "  box.id = '__vars_indicator';\n";
+    varsJs += "  box.style.cssText = 'position:fixed;top:10px;right:10px;background:rgba(0,0,0,.75);color:#fff;padding:8px 12px;border-radius:8px;font:12px/1.4 monospace;z-index:9999;pointer-events:none';\n";
+    varsJs += "  document.body.appendChild(box);\n";
+    varsJs += "  window.__vars = {" + varKeys.join(", ") + "};\n";
+    varsJs += "  function upd(){\n";
+    varsJs += "    let h = '';\n";
+    for (var v2 = 0; v2 < varKeys.length; v2++){
+      varsJs += "    h += '📊 " + varKeys[v2] + " = ' + JSON.stringify(" + varKeys[v2] + ") + '<br>';\n";
+    }
+    varsJs += "    box.innerHTML = h;\n";
+    varsJs += "  }\n";
+    varsJs += "  upd();\n";
+    varsJs += "  setInterval(upd, 200);\n";
+    varsJs += "})();\n\n";
+  }
+
+  var scriptJs = varsJs + jsParts.join("\n");
+
+  var html =
+    '<!DOCTYPE html>\n' +
+    '<html lang="' + esc(ps.lang || "ru") + '">\n' +
+    '<head>\n' +
+    '<meta charset="UTF-8">\n' +
+    '<meta name="viewport" content="width=device-width,initial-scale=1">\n' +
+    '<title>' + esc(title) + '</title>\n' +
+    '<style>\n' +
+    '*{box-sizing:border-box;margin:0;padding:0}\n' +
+    'body{background:' + bg + ';font-family:' + font + ';color:#333;padding:20px;min-height:100vh}\n' +
+    '.pw-page{max-width:' + maxWidth + 'px;margin:0 auto;display:flex;flex-direction:column;gap:8px;}\n' +
+    (cssParts.join("\n")) + '\n' +
+    '</style>\n' +
+    '</head>\n' +
+    '<body>\n' +
+    '<div class="pw-page">\n' +
+    bodyHtml +
+    '</div>\n' +
+    (scriptJs ? '<script>\n' + scriptJs + '\n</script>\n' : '') +
+    '</body>\n' +
+    '</html>';
+
+  return html;
+}
+
+/* ===== РЕНДЕР ОДНОГО БЛОКА В HTML ===== */
+function renderBlockToHTML(block, cssParts, jsParts){
+  var p = block.props || {};
+  var t = block.type;
+
+  /* ===== ПРОСТЫЕ БЛОКИ ===== */
+  if (t === "h1"){
+    return '<h1 style="color:' + esc(p.color||"#111") + ';font-size:' + (p.size||32) + 'px;text-align:' + esc(p.align||"left") + ';margin:8px 0">' + esc(p.text||"") + '</h1>';
+  }
+  if (t === "h2"){
+    return '<h2 style="color:' + esc(p.color||"#222") + ';font-size:' + (p.size||24) + 'px;text-align:' + esc(p.align||"left") + ';margin:6px 0">' + esc(p.text||"") + '</h2>';
+  }
+  if (t === "p"){
+    return '<p style="color:' + esc(p.color||"#333") + ';font-size:' + (p.size||16) + 'px;text-align:' + esc(p.align||"left") + ';line-height:1.5">' + esc(p.text||"") + '</p>';
+  }
+  if (t === "link"){
+    return '<a href="' + esc(p.url||"#") + '" style="color:' + esc(p.color||"#0066cc") + ';font-size:' + (p.size||16) + 'px;text-decoration:underline">' + esc(p.text||"") + '</a>';
+  }
+  if (t === "quote"){
+    return '<blockquote style="border-left:4px solid #00d2ff;padding:6px 14px;color:' + esc(p.color||"#555") + ';font-size:' + (p.size||16) + 'px;font-style:italic;margin:6px 0">' + esc(p.text||"") + '</blockquote>';
+  }
+  if (t === "list"){
+    var tag = p.ordered ? "ol" : "ul";
+    var items = String(p.items||"").split("\n").filter(function(x){ return x.length; });
+    var lis = items.map(function(x){ return '<li>' + esc(x) + '</li>'; }).join("");
+    return '<' + tag + ' style="padding-left:24px;color:' + esc(p.color||"#333") + ';font-size:' + (p.size||16) + 'px;line-height:1.6">' + lis + '</' + tag + '>';
+  }
+  if (t === "button"){
+    var bid = p.id || ("btn_" + block.id);
+    var onclick = p.url ? ' onclick="location.href=\'' + esc(p.url) + '\'"' : '';
+    return '<button id="' + esc(bid) + '"' + onclick + ' style="background:' + esc(p.bg||"#00d2ff") + ';color:' + esc(p.color||"#000") + ';border:0;padding:12px 24px;border-radius:8px;font-size:' + (p.size||14) + 'px;font-weight:700;cursor:pointer;align-self:flex-start">' + esc(p.text||"Кнопка") + '</button>';
+  }
+  if (t === "btnIcon"){
+    var bid2 = p.id || ("icon_" + block.id);
+    var onclick2 = p.url ? ' onclick="location.href=\'' + esc(p.url) + '\'"' : '';
+    return '<button id="' + esc(bid2) + '"' + onclick2 + ' style="background:' + esc(p.bg||"#f59e0b") + ';border:0;padding:10px 14px;border-radius:8px;font-size:22px;cursor:pointer;align-self:flex-start">' + esc(p.icon||"⭐") + '</button>';
+  }
+  if (t === "btnGroup"){
+    var parts = String(p.items||"").split("|");
+    var btns = parts.map(function(x){
+      return '<button style="background:' + esc(p.bg||"#00d2ff") + ';color:' + esc(p.color||"#000") + ';border:0;padding:10px 20px;border-radius:8px;font-weight:700;margin-right:8px;cursor:pointer">' + esc(x) + '</button>';
+    }).join("");
+    return '<div>' + btns + '</div>';
+  }
+  if (t === "img"){
+    return '<img src="' + esc(p.url||"") + '" alt="image" style="max-width:100%;width:' + (p.width||400) + 'px;border-radius:' + (p.radius||8) + 'px;display:block">';
+  }
+  if (t === "avatar"){
+    var sz = p.size || 80;
+    return '<img src="' + esc(p.url||"") + '" alt="avatar" style="width:' + sz + 'px;height:' + sz + 'px;border-radius:50%;object-fit:cover;display:block">';
+  }
+  if (t === "emoji"){
+    return '<div style="font-size:' + (p.size||48) + 'px;line-height:1">' + esc(p.icon||"😀") + '</div>';
+  }
+  if (t === "video"){
+    return '<iframe src="' + esc(p.url||"") + '" style="width:' + (p.width||560) + 'px;max-width:100%;height:' + (p.height||315) + 'px;border:0;border-radius:8px" allowfullscreen></iframe>';
+  }
+
+  /* ===== СТРУКТУРА ===== */
+  if (t === "container"){
+    return '<div style="background:' + esc(p.bg||"#f5f5f5") + ';padding:' + (p.padding||16) + 'px;border-radius:' + (p.radius||8) + 'px">' +
+           '<div style="color:#666;font-size:12px">📦 контейнер</div></div>';
+  }
+  if (t === "cols2"){
+    return '<div style="display:grid;grid-template-columns:1fr 1fr;gap:' + (p.gap||12) + 'px">' +
+           '<div style="background:#f0f0f0;padding:16px;border-radius:8px">' + esc(p.leftText||"Левая") + '</div>' +
+           '<div style="background:#f0f0f0;padding:16px;border-radius:8px">' + esc(p.rightText||"Правая") + '</div>' +
+           '</div>';
+  }
+  if (t === "cols3"){
+    return '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:' + (p.gap||12) + 'px">' +
+           '<div style="background:#f0f0f0;padding:16px;border-radius:8px;text-align:center">' + esc(p.c1||"1") + '</div>' +
+           '<div style="background:#f0f0f0;padding:16px;border-radius:8px;text-align:center">' + esc(p.c2||"2") + '</div>' +
+           '<div style="background:#f0f0f0;padding:16px;border-radius:8px;text-align:center">' + esc(p.c3||"3") + '</div>' +
+           '</div>';
+  }
+  if (t === "divider"){
+    return '<hr style="border:0;border-top:' + (p.thickness||2) + 'px solid ' + esc(p.color||"#ccc") + ';margin:8px 0">';
+  }
+
+  /* ===== ЭФФЕКТЫ ===== */
+  if (t === "space"){
+    return '<div style="height:' + (p.size||40) + 'px"></div>';
+  }
+  if (t === "center"){
+    return '<div style="text-align:center">▶ центрирующий контейнер</div>';
+  }
+  if (t === "shadow"){
+    return '<div style="background:' + esc(p.bg||"#fff") + ';padding:' + (p.padding||16) + 'px;border-radius:' + (p.radius||12) + 'px;box-shadow:0 6px 20px rgba(0,0,0,.15)">блок с тенью</div>';
+  }
+  if (t === "gradient"){
+    return '<div style="background:linear-gradient(' + esc(p.dir||"135deg") + ',' + esc(p.c1||"#00d2ff") + ',' + esc(p.c2||"#a855f7") + ');padding:' + (p.padding||40) + 'px;border-radius:8px;color:#fff;text-align:center;font-weight:700">🌈 градиент</div>';
+  }
+  if (t === "border"){
+    return '<div style="border:' + (p.thickness||2) + 'px solid ' + esc(p.color||"#00d2ff") + ';padding:' + (p.padding||12) + 'px;border-radius:' + (p.radius||8) + 'px">рамка</div>';
+  }
+
+  /* ===== СПЕЦИАЛЬНЫЕ ===== */
+  if (t === "html"){
+    return p.code || "";
+  }
+  if (t === "pageMeta"){
+    // влияет на <head> — обрабатываем отдельно (пока заглушка)
+    if (p.title) project.pageSettings.title = p.title;
+    if (p.lang) project.pageSettings.lang = p.lang;
+    return '';
+  }
+
+  /* ===== СОБЫТИЯ (скрипты) ===== */
+  if (block.isEvent){
+    var js = renderEventToJS(block);
+    if (js) jsParts.push(js);
+    return '';  // события не рисуют HTML
+  }
+
+  /* ===== ДЕЙСТВИЯ (внутри событий) ===== */
+  if (block.isAction){
+    return '';  // действия сами не рисуют HTML, обрабатываются в событии
+  }
+
+  return '';
+}
+
+/* ===== РЕНДЕР СОБЫТИЯ В JS ===== */
+function renderEventToJS(block){
+  var p = block.props || {};
+  var children = block.children || [];
+  if (!children.length) return "";
+
+  var innerJs = "";
+  for (var i = 0; i < children.length; i++){
+    var line = renderActionToJS(children[i]);
+    if (line) innerJs += "  " + line + "\n";
+  }
+
+  if (block.type === "onStart"){
+    return "window.addEventListener('DOMContentLoaded', function(){\n" + innerJs + "});";
+  }
+  if (block.type === "onClick"){
+    var tid = p.targetId || "btn1";
+    return "document.addEventListener('DOMContentLoaded', function(){\n" +
+           "  var el_" + block.id + " = document.getElementById('" + esc(tid) + "');\n" +
+           "  if (el_" + block.id + ") el_" + block.id + ".addEventListener('click', function(){\n" +
+           innerJs +
+           "  });\n" +
+           "});";
+  }
+  if (block.type === "onTimer"){
+    var sec = p.seconds || 1;
+    return "setInterval(function(){\n" + innerJs + "}, " + (sec * 1000) + ");";
+  }
+  return "";
+}
+
+/* ===== РЕНДЕР ОДНОГО ДЕЙСТВИЯ В JS ===== */
+function renderActionToJS(act){
+  var p = act.props || {};
+  var t = act.type;
+
+  if (t === "varSet"){
+    var val = serializeValue(p.value, p.valueType);
+    return p.name + " = " + val + ";";
+  }
+  if (t === "varChange"){
+    var v = serializeValue(p.value, "number");
+    return p.name + " " + (p.op || "+=") + " " + v + ";";
+  }
+  if (t === "varShow"){
+    return "console.log('" + p.name + " =', " + p.name + ");";
+  }
+  if (t === "varDelete"){
+    return "delete window['" + p.name + "'];";
+  }
+  if (t === "actShow"){
+    return "var el = document.getElementById('" + esc(p.targetId||"") + "'); if (el) el.style.display = 'block';";
+  }
+  if (t === "actHide"){
+    return "var el = document.getElementById('" + esc(p.targetId||"") + "'); if (el) el.style.display = 'none';";
+  }
+  if (t === "actColor"){
+    return "var el = document.getElementById('" + esc(p.targetId||"") + "'); if (el) el.style.color = '" + esc(p.color||"#00d2ff") + "';";
+  }
+  if (t === "actSize"){
+    return "var el = document.getElementById('" + esc(p.targetId||"") + "'); if (el) el.style.fontSize = '" + (p.size||20) + "px';";
+  }
+  return "";
+}
+
+function serializeValue(v, type){
+  if (type === "number"){
+    var n = parseFloat(v);
+    return isNaN(n) ? "0" : String(n);
+  }
+  if (type === "bool"){
+    return (v === true || v === "true") ? "true" : "false";
+  }
+  if (type === "string"){
+    return JSON.stringify(String(v == null ? "" : v));
+  }
+  // auto
+  if (typeof v === "number") return String(v);
+  if (typeof v === "boolean") return v ? "true" : "false";
+  return JSON.stringify(String(v == null ? "" : v));
+}
+
+/* ===== ПРЕВЬЮ В IFRAME ===== */
+function updatePreview(){
+  var iframe = $("previewFrame");
+  if (!iframe) return;
+  var html = generateHTML();
+  try{
+    iframe.srcdoc = html;
+  }catch(e){
+    iframe.contentDocument.open();
+    iframe.contentDocument.write(html);
+    iframe.contentDocument.close();
+  }
+}
+
+/* ===== ОТКРЫТИЕ В НОВОЙ ВКЛАДКЕ ===== */
+function openPreviewTab(){
+  var html = generateHTML();
+  var blob = new Blob([html], { type: "text/html;charset=utf-8" });
+  var url = URL.createObjectURL(blob);
+  var w = window.open(url, "_blank");
+  if (!w) toast("Разреши всплывающие окна", "error");
+  setTimeout(function(){ URL.revokeObjectURL(url); }, 60000);
+}
+
+/* ===== ОТКРЫТИЕ/ЗАКРЫТИЕ НИЖНЕЙ ПАНЕЛИ ПРЕВЬЮ ===== */
+var previewOpen = false;
+function togglePreview(){
+  previewOpen = !previewOpen;
+  var bar = $("previewBar");
+  if (!bar) return;
+  if (previewOpen){
+    bar.classList.add("open");
+    updatePreview();
+  } else {
+    bar.classList.remove("open");
+  }
+}
+
+/* ===== ОБРАБОТЧИКИ КНОПОК ПРЕВЬЮ ===== */
+on("prevReload", "click", function(){ updatePreview(); });
+on("prevClose", "click", function(){ togglePreview(); });
+</script><script>
+/* ============================================================
+   PART 7: СОХРАНЕНИЕ ПРОЕКТОВ, ЭКСПОРТ, ФИНАЛЬНАЯ СБОРКА
+   ============================================================ */
+
+/* ===== МОДАЛКА «МОИ ПРОЕКТЫ» ===== */
+function openProjectsModal(){
+  var list = $("projectsList");
+  if (!list) return;
+  var projects = getProjectsList();
+
+  if (!projects.length){
+    list.innerHTML = '<div style="color:#6b7280;font-size:12px;padding:20px;text-align:center;font-style:italic">Проектов пока нет</div>';
+  } else {
+    var h = "";
+    for (var i = 0; i < projects.length; i++){
+      var p = projects[i];
+      h += '<div class="project-item">' +
+        '<div style="flex:1;min-width:0">' +
+          '<div class="name">' + esc(p.name) + '</div>' +
+          '<div class="date">' + esc(p.date || "") + '</div>' +
+        '</div>' +
+        '<button data-load="' + i + '" style="border-color:#00d2ff;color:#00d2ff">Открыть</button>' +
+        '<button data-del="' + i + '" class="del">🗑</button>' +
+      '</div>';
+    }
+    list.innerHTML = h;
+
+    // обработчики
+    var loadBtns = list.querySelectorAll("[data-load]");
+    for (var j = 0; j < loadBtns.length; j++){
+      (function(b){
+        b.addEventListener("click", function(){
+          var idx = parseInt(b.getAttribute("data-load"));
+          loadProjectFromList(idx);
+        });
+      })(loadBtns[j]);
+    }
+    var delBtns = list.querySelectorAll("[data-del]");
+    for (var k = 0; k < delBtns.length; k++){
+      (function(b){
+        b.addEventListener("click", function(){
+          var idx = parseInt(b.getAttribute("data-del"));
+          deleteProjectFromList(idx);
+        });
+      })(delBtns[k]);
+    }
+  }
+  $("projectsModal").classList.add("show");
+}
+
+function loadProjectFromList(idx){
+  var projects = getProjectsList();
+  var p = projects[idx];
+  if (!p || !p.data) return;
+  if (!confirm("Загрузить «" + p.name + "»? Текущий проект будет заменён.")) return;
+  project = clone(p.data);
+  project.variables = project.variables || {};
+  project.pageSettings = project.pageSettings || { title:"Мой сайт", bg:"#ffffff", font:"Arial, sans-serif", width:"800" };
+  selectedId = null;
+  updateProjectName();
+  snapshot();
+  renderCanvas();
+  renderInspector();
+  saveToLS();
+  $("projectsModal").classList.remove("show");
+  toast("📂 Загружен: " + p.name, "success");
+}
+
+function deleteProjectFromList(idx){
+  var projects = getProjectsList();
+  var p = projects[idx];
+  if (!p) return;
+  if (!confirm("Удалить проект «" + p.name + "»?")) return;
+  projects.splice(idx, 1);
+  saveProjectsList(projects);
+  openProjectsModal();
+  toast("🗑 Удалён");
+}
+
+/* ===== ЭКСПОРТ .HTML ===== */
+function downloadHTML(){
+  autoDetectVars();
+  var html = generateHTML();
+  var name = (project.name || "site").replace(/[^\wа-яА-Я\-_ ]/g, "").trim() || "site";
+  var filename = name + ".html";
+
+  try{
+    var blob = new Blob([html], { type: "text/html;charset=utf-8" });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    a.type = "text/html";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(function(){ URL.revokeObjectURL(url); }, 1000);
+    toast("⬇ " + filename, "success");
+  }catch(e){
+    // fallback: data URL
+    var a2 = document.createElement("a");
+    a2.href = "data:text/html;charset=utf-8," + encodeURIComponent(html);
+    a2.download = filename;
+    document.body.appendChild(a2);
+    a2.click();
+    document.body.removeChild(a2);
+    toast("⬇ " + filename, "success");
+  }
+}
+
+/* ===== ЭКСПОРТ .JSON (для импорта обратно) ===== */
+function downloadJSON(){
+  var data = JSON.stringify(project, null, 2);
+  var name = (project.name || "project").replace(/[^\wа-яА-Я\-_ ]/g, "").trim() || "project";
+  var a = document.createElement("a");
+  a.href = "data:application/json;charset=utf-8," + encodeURIComponent(data);
+  a.download = name + ".json";
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  toast("⬇ " + name + ".json", "success");
+}
+
+/* ===== ИМПОРТ .JSON ===== */
+function importJSON(){
+  var inp = document.createElement("input");
+  inp.type = "file";
+  inp.accept = ".json,application/json";
+  inp.onchange = function(ev){
+    var f = ev.target.files[0];
+    if (!f) return;
+    var r = new FileReader();
+    r.onload = function(e){
+      try{
+        var data = JSON.parse(e.target.result);
+        if (!data.blocks || !Array.isArray(data.blocks)) throw new Error("Неверный формат");
+        if (!confirm("Импортировать проект? Текущий будет заменён.")) return;
+        project = data;
+        project.variables = project.variables || {};
+        project.pageSettings = project.pageSettings || { title:"Мой сайт", bg:"#ffffff", font:"Arial, sans-serif", width:"800" };
+        selectedId = null;
+        updateProjectName();
+        snapshot();
+        renderCanvas();
+        renderInspector();
+        saveToLS();
+        toast("📥 Импортировано", "success");
+      }catch(err){
+        toast("❌ " + err.message, "error");
+      }
+    };
+    r.readAsText(f);
+  };
+  inp.click();
+}
+
+/* ===== СОХРАНЕНИЕ ===== */
+function saveProjectWithName(){
+  var nm = prompt("Название проекта:", project.name || "Мой сайт");
+  if (nm === null) return;
+  project.name = nm.trim() || "Мой сайт";
+  updateProjectName();
+  saveToLS();
+
+  var projects = getProjectsList();
+  var existing = -1;
+  for (var i = 0; i < projects.length; i++){
+    if (projects[i].name === project.name){ existing = i; break; }
+  }
+  var entry = {
+    name: project.name,
+    date: new Date().toLocaleString("ru-RU"),
+    data: clone(project)
+  };
+  if (existing >= 0) projects[existing] = entry;
+  else projects.push(entry);
+  saveProjectsList(projects);
+  toast("💾 Сохранено: " + project.name, "success");
+}
+
+/* ===== ОБРАБОТЧИКИ КНОПОК ===== */
+on("btnPreview", "click", function(){ togglePreview(); });
+on("btnOpenTab", "click", function(){ openPreviewTab(); });
+on("btnDownload", "click", function(){ downloadHTML(); });
+on("btnSave", "click", function(){ saveProjectWithName(); });
+on("btnProjects", "click", function(){ openProjectsModal(); });
+
+on("projModalClose", "click", function(){ $("projectsModal").classList.remove("show"); });
+on("projModalNew", "click", function(){
+  $("projectsModal").classList.remove("show");
+  $("btnNew").click();
+});
+
+on("nameOk", "click", function(){
+  var v = $("nameInput").value.trim() || "Мой сайт";
+  project.name = v;
+  updateProjectName();
+  saveToLS();
+  $("nameModal").classList.remove("show");
+  toast("✅ " + v, "success");
+});
+on("nameCancel", "click", function(){ $("nameModal").classList.remove("show"); });
+
+/* ===== МЕНЮ ЭКСПОРТА (кнопка download + shift = json) ===== */
+on("btnDownload", "contextmenu", function(e){
+  e.preventDefault();
+  var action = confirm("OK — экспорт HTML\nОтмена — экспорт JSON");
+  if (action) downloadHTML();
+  else downloadJSON();
+});
+
+/* ===== ДОБАВЛЕНИЕ КНОПКИ «ПЕРЕМЕННЫЕ» В ТОПБАР ===== */
+(function addVarsButton(){
+  var topbar = $("topbar");
+  if (!topbar) return;
+  var btn = document.createElement("button");
+  btn.id = "btnVars";
+  btn.title = "Переменные";
+  btn.innerHTML = "🧮 <span class='long'>Переменные</span>";
+  topbar.insertBefore(btn, $("btnPreview"));
+  btn.addEventListener("click", function(){ openVarsModal(); });
+})();
+
+/* ===== ДОБАВЛЕНИЕ КНОПКИ «ИМПОРТ» В МОДАЛКУ ПРОЕКТОВ ===== */
+(function addImportButton(){
+  var modal = $("projectsModal");
+  if (!modal) return;
+  var box = modal.querySelector(".modal-box");
+  if (!box) return;
+  var btn = document.createElement("button");
+  btn.id = "projModalImport";
+  btn.textContent = "📥 Импорт .json";
+  btn.style.background = "var(--bg4)";
+  btn.style.color = "var(--text2)";
+  box.insertBefore(btn, $("projModalClose"));
+  btn.addEventListener("click", function(){
+    $("projectsModal").classList.remove("show");
+    importJSON();
+  });
+})();
+
+/* ===== АВТОСОХРАНЕНИЕ КАЖДЫЕ 5 СЕКУНД ===== */
+setInterval(function(){
+  if (project && project.blocks) saveToLS();
+}, 5000);
+
+/* ===== ГОРЯЧИЕ КЛАВИШИ ===== */
+document.addEventListener("keydown", function(e){
+  // Ctrl+Z — undo
+  if ((e.ctrlKey || e.metaKey) && e.key === "z" && !e.shiftKey){
+    e.preventDefault();
+    undo();
+  }
+  // Ctrl+Shift+Z или Ctrl+Y — redo
+  if ((e.ctrlKey || e.metaKey) && ((e.key === "z" && e.shiftKey) || e.key === "y")){
+    e.preventDefault();
+    redo();
+  }
+  // Ctrl+S — сохранить
+  if ((e.ctrlKey || e.metaKey) && e.key === "s"){
+    e.preventDefault();
+    saveProjectWithName();
+  }
+  // Ctrl+Enter — превью
+  if ((e.ctrlKey || e.metaKey) && e.key === "Enter"){
+    e.preventDefault();
+    togglePreview();
+  }
+  // Delete — удалить выбранный блок
+  if (e.key === "Delete" && selectedId){
+    // не мешать вводу в поле
+    var tag = (document.activeElement && document.activeElement.tagName) || "";
+    if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+    if (confirm("Удалить выбранный блок?")) deleteBlock(selectedId);
+  }
+  // Esc — снять выделение
+  if (e.key === "Escape"){
+    selectedId = null;
+    renderCanvas();
+    renderInspector();
+  }
+});
+
+/* ===== ПРИВЕТСТВИЕ ПРИ ПЕРВОМ ЗАПУСКЕ ===== */
+(function firstLaunchHint(){
+  try{
+    if (!localStorage.getItem("pocketweb_seen")){
+      setTimeout(function(){
+        toast("👋 Добро пожаловать в PocketWeb! Перетащи блоки из палитры", "success");
+        try{ localStorage.setItem("pocketweb_seen", "1"); }catch(e){}
+      }, 800);
+    }
+  }catch(e){}
+})();
+
+/* ===== ФИНАЛЬНЫЙ ЛОГ ===== */
+console.log("PocketWeb v1.0 loaded ✓");
+console.log("Блоков в палитре:", Object.keys(BLOCK_DEFS).length);
+console.log("Категорий:", CATEGORIES.length);
+console.log("Горячие клавиши: Ctrl+Z, Ctrl+Shift+Z, Ctrl+S, Ctrl+Enter, Delete, Esc");
+</script>
+</body>
+</html>
